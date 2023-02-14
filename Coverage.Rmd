@@ -1,0 +1,256 @@
+### Coverage- Specie- primerss###
+library(readxl)
+library(ggplot2)
+library(tidyverse)
+library(dplyr)
+library(vegan)
+library(tidyverse)
+library(ggforce)
+
+
+Coverage_Species<-read_excel("/Users/Thomas/Desktop/Nemabiome/nemabiome_new/Nemabiome-refined.xlsx", sheet="Coverage_Species_new")
+str(Coverage_Species)
+head(Coverage_Species)
+
+Coverage_Species$Pooling<-as.factor(Coverage_Species$Pooling)
+Coverage_Species$Cow<-as.factor(Coverage_Species$Cow)
+Coverage_Species$Copies<-as.factor(Coverage_Species$Copies)
+Coverage_Species$Primer<-as.factor(Coverage_Species$Primer)
+
+#make community matrix - extract columns with abundance information, the 5 indicates that you cull everything before column 5 as those treatments arent appropriate for PERMANOVA
+com = Coverage_Species[,5:ncol(Coverage_Species)]
+head(com)
+
+df_com<-as.data.frame(com)
+
+BC<-vegdist(df_com, method="bray")
+
+adonis(BC ~ Coverage + Primer + Pooling, Coverage_Species, perm=200)
+
+#turn abundance data frame into a matrix
+m_com = as.matrix(com)
+head(m_com)
+
+# now we create our NMDS (set seed makes sure we get the same result every time):
+set.seed(123)
+nmds = metaMDS(m_com, distance = "bray")
+nmds
+# for a good representation on our data we are after a stress level of less than 0.2, if its zero then you might have an outlier thats very different to the other samples. 
+
+plot(nmds)
+
+# to plot it in ggplots2 we need to extract the NMDS coordinates for NMDS1 and NMDS2 axes, then put them into a new dataframe called "data.scores"
+#extract NMDS scores (x and y coordinates)
+data.scores = as.data.frame(scores(nmds)$ sites)
+
+#add columns to data frame 
+data.scores$Cow = Coverage_Species$Cow
+data.scores$Primer = Coverage_Species$Primer
+data.scores$Coverage = Coverage_Species$Coverage
+
+data.scores$Primer<-as.factor(data.scores$Primer)
+data.scores$Cow<-as.factor(data.scores$Cow)
+data.scores$Coverage<-as.factor(data.scores$Coverage)
+
+head(data.scores)
+
+xx = ggplot(data.scores, aes(x = NMDS1, y = NMDS2)) + 
+    geom_point(size = 2.5, aes( shape = Primer, colour = Coverage))+ 
+    theme(axis.text.y = element_text(colour = "black", size = 12, face = "bold"), 
+    axis.text.x = element_text(colour = "black", face = "bold", size = 12), 
+    legend.text = element_text(size = 12, face ="bold", colour ="black"), 
+    legend.position = "right", axis.title.y = element_text(face = "bold", size = 14), 
+    axis.title.x = element_text(face = "bold", size = 14, colour = "black"), 
+    legend.title = element_text(size = 14, colour = "black", face = "bold"), 
+    panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 1.2),
+    legend.key=element_blank()) + 
+    labs(x = "NMDS1", colour = "Coverage", y = "NMDS2", shape = "Primer used")  
+ 
+xx
+
+### Coverage Species Pooling ###
+Coverage_Species$Pooling<-as.factor(Coverage_Species$Pooling)
+Coverage_Species$Cow<-as.factor(Coverage_Species$Cow)
+Coverage_Species$Copies<-as.factor(Coverage_Species$Copies)
+Coverage_Species$Primer<-as.factor(Coverage_Species$Primer)
+
+com = Coverage_Species[,5:ncol(Coverage_Species)]
+head(com)
+
+#turn abundance data frame into a matrix
+m_com = as.matrix(com)
+head(m_com)
+
+# now we create our NMDS (set seed makes sure we get the same result every time):
+set.seed(123)
+nmds = metaMDS(m_com, distance = "bray")
+nmds
+# for a good representation on our data we are after a stress level of less than 0.2, if its zero then you might have an outlier thats very different to the other samples. 
+
+plot(nmds)
+
+# to plot it in ggplots2 we need to extract the NMDS coordinates for NMDS1 and NMDS2 axes, then put them into a new dataframe called "data.scores"
+#extract NMDS scores (x and y coordinates)
+data.scores = as.data.frame(scores(nmds)$ sites)
+
+#add columns to data frame 
+data.scores$Cow = Coverage_Species$Cow
+data.scores$Pooling = Coverage_Species$Pooling
+data.scores$Coverage = Coverage_Species$Coverage
+
+data.scores$Pooling<-as.factor(data.scores$Pooling)
+data.scores$Cow<-as.factor(data.scores$Cow)
+data.scores$Coverage<-as.factor(data.scores$Coverage)
+
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "1"="Replicate"))
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "2"="Replicate"))
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "3"="Replicate"))
+count(data.scores, Pooling)
+
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "1_2"="Pooled replicates 1 and 2"))
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "1_2_3"="Pooled replicates 1, 2 and 3"))
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "1_3"="Pooled replicates 1 and 3"))
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "2_3"="Pooled replicates 2 and 3"))
+count(data.scores, Pooling)
+
+head(data.scores)
+
+xx = ggplot(data.scores, aes(x = NMDS1, y = NMDS2)) + 
+    geom_point(size = 2.5, aes( shape = Coverage, colour = Pooling))+ 
+    theme(axis.text.y = element_text(colour = "black", size = 12, face = "bold"), 
+    axis.text.x = element_text(colour = "black", face = "bold", size = 12), 
+    legend.text = element_text(size = 12, face ="bold", colour ="black"), 
+    legend.position = "right", axis.title.y = element_text(face = "bold", size = 14), 
+    axis.title.x = element_text(face = "bold", size = 14, colour = "black"), 
+    legend.title = element_text(size = 14, colour = "black", face = "bold"), 
+    panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 1.2),
+    legend.key=element_blank()) + 
+    labs(x = "NMDS1", colour = "Pooling method", y = "NMDS2", shape = "Coverage")  
+ 
+xx
+
+### Coverage- ASVs- primers###
+Coverage_ASVs<-read_excel("/Users/Thomas/Desktop/Nemabiome/nemabiome_new/Nemabiome-refined.xlsx", sheet="Coverage_ASVs")
+str(Coverage_ASVs)
+head(Coverage_ASVs)
+
+Coverage_ASVs$Primer<-as.factor(Coverage_ASVs$Primer)
+Coverage_ASVs$Cow<-as.factor(Coverage_ASVs$Cow)
+Coverage_ASVs$Coverage<-as.factor(Coverage_ASVs$coverage)
+Coverage_ASVs$Pooling<-as.factor(Coverage_ASVs$Pooling)
+
+com = Coverage_ASVs[,5:ncol(Coverage_ASVs)]
+head(com)
+
+df_com<-as.data.frame(com)
+
+BC<-vegdist(df_com, method="bray")
+
+adonis(BC ~ Coverage + Primer + Pooling, Coverage_Species, perm=200)
+
+#turn abundance data frame into a matrix
+m_com = as.matrix(com)
+head(m_com)
+
+# now we create our NMDS (set seed makes sure we get the same result every time):
+set.seed(123)
+nmds = metaMDS(m_com, distance = "bray")
+nmds
+# for a good representation on our data we are after a stress level of less than 0.2, if its zero then you might have an outlier thats very different to the other samples.
+
+plot(nmds)
+
+# to plot it in ggplots2 we need to extract the NMDS coordinates for NMDS1 and NMDS2 axes, then put them into a new dataframe called "data.scores"
+#extract NMDS scores (x and y coordinates)
+data.scores = as.data.frame(scores(nmds)$ sites)
+
+#add columns to data frame 
+data.scores$Cow = Coverage_ASVs$Cow
+data.scores$Primer = Coverage_ASVs$Primer
+data.scores$Coverage = Coverage_ASVs$Coverage
+data.scores$Pooling = Coverage_ASVs$Pooling
+
+data.scores$Primer<-as.factor(data.scores$Primer)
+data.scores$Cow<-as.factor(data.scores$Cow)
+data.scores$Coverage<-as.factor(data.scores$Coverage)
+data.scores$Pooling<-as.factor(data.scores$Pooling)
+
+head(data.scores)
+
+xx = ggplot(data.scores, aes(x = NMDS1, y = NMDS2)) + 
+    geom_point(size = 2.5, aes( shape = Coverage, colour = Primer))+ 
+    theme(axis.text.y = element_text(colour = "black", size = 12, face = "bold"), 
+    axis.text.x = element_text(colour = "black", face = "bold", size = 12), 
+    legend.text = element_text(size = 12, face ="bold", colour ="black"), 
+    legend.position = "right", axis.title.y = element_text(face = "bold", size = 14), 
+    axis.title.x = element_text(face = "bold", size = 14, colour = "black"), 
+    legend.title = element_text(size = 14, colour = "black", face = "bold"), 
+    panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 1.2),
+    legend.key=element_blank()) + 
+    labs(x = "NMDS1", colour = "Primer used", y = "NMDS2", shape = "Coverage")  
+ 
+xx
+
+### Coverage ASVs Pooling ###
+Coverage_ASVs$Pooling<-as.factor(Coverage_ASVs$Pooling)
+Coverage_ASVs$Cow<-as.factor(Coverage_ASVs$Cow)
+Coverage_ASVs$Coverage<-as.factor(Coverage_ASVs$Coverage)
+Coverage_ASVs$Primer<-as.factor(Coverage_ASVs$Primer)
+
+com = Coverage_ASVs[,5:ncol(Coverage_ASVs)]
+head(com)
+
+#turn abundance data frame into a matrix
+m_com = as.matrix(com)
+head(m_com)
+
+# now we create our NMDS (set seed makes sure we get the same result every time):
+set.seed(123)
+nmds = metaMDS(m_com, distance = "bray")
+nmds
+# for a good representation on our data we are after a stress level of less than 0.2, if its zero then you might have an outlier thats very different to the other samples. Stress value should be reported in the figure legend
+
+plot(nmds)
+
+# to plot it in ggplots2 we need to extract the NMDS coordinates for NMDS1 and NMDS2 axes, then put them into a new dataframe called "data.scores"
+#extract NMDS scores (x and y coordinates)
+data.scores = as.data.frame(scores(nmds)$ sites)
+
+#add columns to data frame 
+data.scores$Cow = Coverage_ASVs$Cow
+data.scores$Pooling = Coverage_ASVs$Pooling
+data.scores$Coverage = Coverage_ASVs$Coverage
+data.scores$Primer = Coverage_ASVs$Primer
+
+data.scores$Pooling<-as.factor(data.scores$Pooling)
+data.scores$Cow<-as.factor(data.scores$Cow)
+data.scores$Coverage<-as.factor(data.scores$Coverage)
+data.scores$Primer<-as.factor(data.scores$Primer)
+
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "1"="Replicate"))
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "2"="Replicate"))
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "3"="Replicate"))
+count(data.scores, Pooling)
+
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "1_2"="Pooled replicates 1 and 2"))
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "1_2_3"="Pooled replicates 1, 2 and 3"))
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "1_3"="Pooled replicates 1 and 3"))
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "2_3"="Pooled replicates 2 and 3"))
+count(data.scores, Pooling)
+
+head(data.scores)
+
+xx = ggplot(data.scores, aes(x = NMDS1, y = NMDS2)) + 
+    geom_point(size = 2.5, aes( shape = Coverage, colour = Pooling))+ 
+    theme(axis.text.y = element_text(colour = "black", size = 12, face = "bold"), 
+    axis.text.x = element_text(colour = "black", face = "bold", size = 12), 
+    legend.text = element_text(size = 12, face ="bold", colour ="black"), 
+    legend.position = "right", axis.title.y = element_text(face = "bold", size = 14), 
+    axis.title.x = element_text(face = "bold", size = 14, colour = "black"), 
+    legend.title = element_text(size = 14, colour = "black", face = "bold"), 
+    panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 1.2),
+    legend.key=element_blank()) + 
+    labs(x = "NMDS1", colour = "Pooling method", y = "NMDS2", shape = "Coverage")  
+ 
+xx
+

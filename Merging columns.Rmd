@@ -1,0 +1,21 @@
+### Sequencing depth- species merging for all, just change the sheet names###
+library(readxl)
+library(ggplot2)
+library(tidyverse)
+library(dplyr)
+
+# this is to remove the unique names it assigns for the duplicated column names of the species
+Depth_Species<-read_excel("/Users/Thomas/Desktop/Nemabiome/nemabiome_new/Nemabiome-refined.xlsx", sheet="Bioinformatics-Species", .name_repair = "minimal")
+
+str(Depth_Species)
+head(Depth_Species)
+
+Depth_Species_df<-as.data.frame(Depth_Species)
+
+Depth_Species_df
+
+df<-as.data.frame(lapply(split.default(Depth_Species_df, names(Depth_Species_df)), function(x) Reduce(`+`, x)))
+
+write.csv(df, "/Users/Thomas/Desktop/Nemabiome/nemabiome_new.csv")
+
+# Copied and pasted into the main excel sheet (Nemabiome-refined.xlsx)
