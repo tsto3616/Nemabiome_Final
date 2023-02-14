@@ -1,0 +1,20 @@
+# had issues assigning it as a table, instead assigned it manually through the code below and copying and pasting ASVs. 
+TSeqTab <- as.data.frame(t(seqtab_nochim))
+TSeqTab$variant<-1:nrow(TSeqTab)
+write.csv(TSeqTab, file = "/Users/Thomas/Desktop/Nemabiome/table_transposed_withNos.csv")
+
+Tseqtab_nochim<-read.csv("/Users/Thomas/Desktop/Nemabiome/table_transposed_withNos.csv", row.names=1)
+Tseqtab_nochim<-as.matrix(Tseqtab_nochim)
+print(Tseqtab_nochim)
+
+rownames(Tseqtab_nochim) <- paste0("OTU", 1:nrow(Tseqtab_nochim))
+colnames(Tseqtab_nochim) <- paste0("Sample", 1:ncol(Tseqtab_nochim))
+Tseqtab_nochim
+
+ASV1<-"CGAGGTAAAGCACACAGAAGCCCAACCTTTAGGATTGTTGCAAAGAGCACAGGCAACCATTCATACTGATTGCTTAGCTCCGGGCCTTGCTGATAGAATGTGCTATTAATTGCCCATCTGCGGCATTTTGTTG"
+
+Taxa <- assignTaxonomy(ASV1,"/Users/Thomas/Downloads/Nema_ref_ver3_at.fas",taxLevels = c("Locus", "Genus", "Species", "Subsp/Strain"), verbose = TRUE, minBoot = 40)
+print(Taxa)
+
+write.csv(Taxa, file = "/Users/Thomas/Downloads/maxBoot-test.csv", row.names = TRUE)
+unname(Taxa)
