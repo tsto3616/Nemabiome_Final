@@ -47,10 +47,12 @@ data.scores = as.data.frame(scores(nmds)$ sites)
 data.scores$Cow = Bioinfo_Species$Cow
 data.scores$Primer = Bioinfo_Species$Primer
 data.scores$Pooling = Bioinfo_Species$Pooling
+data.scores$Replicates=Bioinfo_Species$Replicates
 
 data.scores$Primer<-as.factor(data.scores$Primer)
 data.scores$Cow<-as.factor(data.scores$Cow)
 data.scores$Pooling<-as.factor(data.scores$Pooling)
+data.scores$Replicates<-as.factor(data.scores$Replicates)
 
 data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "one_replicate"="No pooling"))
 data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "two_replicates"="Pooling of 2 replicates"))
@@ -59,8 +61,23 @@ count(data.scores, Pooling)
 
 head(data.scores)
 
+env= Bioinfo_Species[,4]
+
+head(env)
+
+env$Cow<-as.factor(env$Cow)
+
+en = envfit(nmds, env, permutations = 999)
+
+en
+
+en_coord_cat = as.data.frame(scores(en, "factors"))
+en_coord_cat 
+
 xx = ggplot(data.scores, aes(x = NMDS1, y = NMDS2)) + 
-    geom_point(size = 2.5, aes( shape = Primer, colour = Pooling))+ 
+    geom_point(size = 2.5, aes(shape = Primer, colour = Pooling))+ geom_segment(aes(x = 0, y = 0, xend = NMDS1, yend = NMDS2), 
+       data = en_coord_cat, size =1, alpha = 0.5, colour = "grey30")  + geom_text(data = en_coord_cat, aes(x = NMDS1, y = NMDS2), colour = "grey30", 
+       fontface = "bold", label= row.names(en_coord_cat))+ 
     theme(axis.text.y = element_text(colour = "black", size = 12, face = "bold"), 
     axis.text.x = element_text(colour = "black", face = "bold", size = 12), 
     legend.text = element_text(size = 12, face ="bold", colour ="black"), 
@@ -70,6 +87,35 @@ xx = ggplot(data.scores, aes(x = NMDS1, y = NMDS2)) +
     panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 1.2),
     legend.key=element_blank()) + 
     labs(x = "NMDS1", colour = "Pooling", y = "NMDS2", shape = "Primer")  
+ 
+xx
+
+env= Bioinfo_Species[,1]
+
+head(env)
+
+env$Pooling<-as.factor(env$Pooling)
+
+en = envfit(nmds, env, permutations = 999)
+
+en
+
+en_coord_cat = as.data.frame(scores(en, "factors"))
+en_coord_cat 
+
+xx = ggplot(data.scores, aes(x = NMDS1, y = NMDS2)) + 
+    geom_point(size = 2.5, aes( colour = Replicates))+ geom_segment(aes(x = 0, y = 0, xend = NMDS1, yend = NMDS2), 
+       data = en_coord_cat, size =1, alpha = 0.5, colour = "grey30")  + geom_text(data = en_coord_cat, aes(x = NMDS1, y = NMDS2), colour = "grey30", 
+       fontface = "bold", label= c("one replicate", "three replicates", "two replicates")) +
+    theme(axis.text.y = element_text(colour = "black", size = 12, face = "bold"), 
+    axis.text.x = element_text(colour = "black", face = "bold", size = 12), 
+    legend.text = element_text(size = 12, face ="bold", colour ="black"), 
+    legend.position = "right", axis.title.y = element_text(face = "bold", size = 14), 
+    axis.title.x = element_text(face = "bold", size = 14, colour = "black"), 
+    legend.title = element_text(size = 14, colour = "black", face = "bold"), 
+    panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 1.2),
+    legend.key=element_blank()) + 
+    labs(x = "NMDS1", colour = "PCR replicates", y = "NMDS2")  
  
 xx
 
@@ -120,9 +166,11 @@ data.scores = as.data.frame(scores(nmds)$ sites)
 #add columns to data frame 
 data.scores$Primer = Bioinfo_Species$Primer
 data.scores$Pooling = Bioinfo_Species$Pooling
+data.scores$Replicates = Bioinfo_Species$Replicates
 
 data.scores$Primer<-as.factor(data.scores$Primer)
 data.scores$Pooling<-as.factor(data.scores$Pooling)
+data.scores$Replicates<-as.factor(data.scores$Replicates)
 
 data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "one_replicate"="No pooling"))
 data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "two_replicates"="Pooling of 2 replicates"))
@@ -131,8 +179,23 @@ count(data.scores, Pooling)
 
 head(data.scores)
 
+env= Bioinfo_Species[,2]
+
+head(env)
+
+env$Cow<-as.factor(env$Cow)
+
+en = envfit(nmds, env, permutations = 999)
+
+en
+
+en_coord_cat = as.data.frame(scores(en, "factors"))
+en_coord_cat 
+
 xx = ggplot(data.scores, aes(x = NMDS1, y = NMDS2)) + 
-    geom_point(size = 2.5, aes( shape = Primer, colour = Pooling))+ 
+    geom_point(size = 2.5, aes( shape = Primer, colour = Pooling))+ geom_segment(aes(x = 0, y = 0, xend = NMDS1, yend = NMDS2), 
+       data = en_coord_cat, size =1, alpha = 0.5, colour = "grey30")  + geom_text(data = en_coord_cat, aes(x = NMDS1, y = NMDS2), colour = "grey30", 
+       fontface = "bold", label= row.names(en_coord_cat))+
     theme(axis.text.y = element_text(colour = "black", size = 12, face = "bold"), 
     axis.text.x = element_text(colour = "black", face = "bold", size = 12), 
     legend.text = element_text(size = 12, face ="bold", colour ="black"), 
@@ -142,6 +205,21 @@ xx = ggplot(data.scores, aes(x = NMDS1, y = NMDS2)) +
     panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 1.2),
     legend.key=element_blank()) + 
     labs(x = "NMDS1", colour = "Pooling", y = "NMDS2", shape = "Primer")  
+ 
+xx
+
+#replicates
+xx = ggplot(data.scores, aes(x = NMDS1, y = NMDS2)) + 
+    geom_point(size = 2.5, aes(colour = Replicates))+ 
+    theme(axis.text.y = element_text(colour = "black", size = 12, face = "bold"), 
+    axis.text.x = element_text(colour = "black", face = "bold", size = 12), 
+    legend.text = element_text(size = 12, face ="bold", colour ="black"), 
+    legend.position = "right", axis.title.y = element_text(face = "bold", size = 14), 
+    axis.title.x = element_text(face = "bold", size = 14, colour = "black"), 
+    legend.title = element_text(size = 14, colour = "black", face = "bold"), 
+    panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 1.2),
+    legend.key=element_blank()) + 
+    labs(x = "NMDS1", colour = "Replicates", y = "NMDS2")  
  
 xx
 

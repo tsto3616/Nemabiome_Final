@@ -1,0 +1,540 @@
+### Sequencing depth- Species###
+library(readxl)
+library(ggplot2)
+library(tidyverse)
+library(dplyr)
+library(vegan)
+library(tidyverse)
+library(ggforce)
+library(concaveman)
+
+#names based on past work done, inconvenient to change the names to the data but this is for the copy number threshold (%)
+Depth_Species<-read_excel("/Users/Thomas/Desktop/Nemabiome/nemabiome_new/Nemabiome-refined.xlsx", sheet="Depth_Species_new")
+str(Depth_Species)
+head(Depth_Species)
+
+Depth_Species$Primer<-as.factor(Depth_Species$Primer)
+Depth_Species$Pooling<-as.factor(Depth_Species$Pooling)
+Depth_Species$Cow<-as.factor(Depth_Species$Cow)
+Depth_Species$Depth<-as.factor(Depth_Species$Depth)
+
+#make community matrix - extract columns with abundance information, the 5 indicates that you cull everything before column 5 as those treatments arent appropriate for PERMANOVA
+com = Depth_Species[,5:ncol(Depth_Species)]
+head(com)
+
+df_com<-as.data.frame(com)
+
+BC<-vegdist(df_com, method="bray")
+
+Depth_Species_Primer<-adonis(BC ~ Depth + Primer + Pooling, Depth_Species, perm=200)
+
+Depth_Species_Primer
+
+#turn abundance data frame into a matrix
+m_com = as.matrix(com)
+head(m_com)
+
+env= Depth_Species[,1]
+
+head(env)
+
+#having problems where it sees cow as a continuous variable thus need to swap it out for a categorical one as done below:
+env$Primer<-as.factor(env$Primer)
+
+# now we create our NMDS (set seed makes sure we get the same result every time):
+set.seed(123)
+nmds = metaMDS(m_com, distance = "bray")
+nmds
+
+en = envfit(nmds, env, permutations = 999, na.rm = TRUE)
+
+en
+# for a good representation on our data we are after a stress level of less than 0.2, if its zero then you might have an outlier thats very different to the other samples. 
+
+plot(nmds)
+plot(en)
+
+# to plot it in ggplots2 we need to extract the NMDS coordinates for NMDS1 and NMDS2 axes, then put them into a new dataframe called "data.scores"
+#extract NMDS scores (x and y coordinates)
+data.scores = as.data.frame(scores(nmds)$ sites)
+
+#add columns to data frame 
+data.scores$Cow = Depth_Species$Cow
+data.scores$Primer = Depth_Species$Primer
+data.scores$Depth = Depth_Species$Depth
+data.scores$Pooling = Depth_Species$Pooling
+
+data.scores$Primer<-as.factor(data.scores$Primer)
+data.scores$Cow<-as.factor(data.scores$Cow)
+data.scores$Depth<-as.factor(data.scores$Depth)
+data.scores$Pooling<-as.factor(data.scores$Pooling)
+
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "1"="Replicate"))
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "2"="Replicate"))
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "3"="Replicate"))
+count(data.scores, Pooling)
+
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "1_2"="Pooled replicates 1 and 2"))
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "1_2_3"="Pooled replicates 1, 2 and 3"))
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "1_3"="Pooled replicates 1 and 3"))
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "2_3"="Pooled replicates 2 and 3"))
+count(data.scores, Pooling)
+
+head(data.scores)
+
+en_coord_cat = as.data.frame(scores(en, "factors"))
+en_coord_cat 
+
+#Cows plotted with Copy NUmber threshold% for vectors, had to manually assign the names  
+xx1 = ggplot(data.scores, aes(x = NMDS1, y = NMDS2)) +   geom_point(size = 2.5, aes(colour = Cow)) + geom_segment(aes(x = 0, y = 0, xend = NMDS1, yend = NMDS2), 
+       data = en_coord_cat, size =1, alpha = 0.5, colour = "grey30")  + geom_text(data = en_coord_cat, aes(x = NMDS1, y = NMDS2), colour = "grey30", 
+       fontface = "bold", label= c("0.05%","0.5%","1%","2%","All")) +
+    theme(axis.text.y = element_text(colour = "black", size = 12, face = "bold"), 
+    axis.text.x = element_text(colour = "black", face = "bold", size = 12), 
+    legend.text = element_text(size = 12, face ="bold", colour ="black"), 
+    legend.position = "right", axis.title.y = element_text(face = "bold", size = 14), 
+    axis.title.x = element_text(face = "bold", size = 14, colour = "black"), 
+    legend.title = element_text(size = 14, colour = "black", face = "bold"), 
+    panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 1.2),
+    legend.key=element_blank()) + 
+    labs(x = "NMDS1", colour = "Cow", y = "NMDS2")  
+ 
+xx1
+
+#Primer with vector for depth
+xx2 = ggplot(data.scores, aes(x = NMDS1, y = NMDS2)) +   geom_point(size = 2.5, aes(colour = Primer)) + geom_segment(aes(x = 0, y = 0, xend = NMDS1, yend = NMDS2), 
+       data = en_coord_cat, size =1, alpha = 0.5, colour = "grey30")  + geom_text(data = en_coord_cat, aes(x = NMDS1, y = NMDS2), colour = "grey30", 
+       fontface = "bold", label =  c("0.05%","0.5%","1%","2%","All")) + 
+    theme(axis.text.y = element_text(colour = "black", size = 12, face = "bold"), 
+    axis.text.x = element_text(colour = "black", face = "bold", size = 12), 
+    legend.text = element_text(size = 12, face ="bold", colour ="black"), 
+    legend.position = "right", axis.title.y = element_text(face = "bold", size = 14), 
+    axis.title.x = element_text(face = "bold", size = 14, colour = "black"), 
+    legend.title = element_text(size = 14, colour = "black", face = "bold"), 
+    panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 1.2),
+    legend.key=element_blank()) + 
+    labs(x = "NMDS1", colour = "Primer used", y = "NMDS2")  
+ 
+xx2
+
+# Now for pooling 
+xx3 = ggplot(data.scores, aes(x = NMDS1, y = NMDS2)) +   geom_point(size = 2.5, aes(colour = Pooling)) + geom_segment(aes(x = 0, y = 0, xend = NMDS1, yend = NMDS2), 
+       data = en_coord_cat, size =1, alpha = 0.5, colour = "grey30")  + geom_text(data = en_coord_cat, aes(x = NMDS1, y = NMDS2), colour = "grey30", 
+       fontface = "bold", label =  c("0.05%","0.5%","1%","2%","All")) + 
+    theme(axis.text.y = element_text(colour = "black", size = 12, face = "bold"), 
+    axis.text.x = element_text(colour = "black", face = "bold", size = 12), 
+    legend.text = element_text(size = 12, face ="bold", colour ="black"), 
+    legend.position = "right", axis.title.y = element_text(face = "bold", size = 14), 
+    axis.title.x = element_text(face = "bold", size = 14, colour = "black"), 
+    legend.title = element_text(size = 14, colour = "black", face = "bold"), 
+    panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 1.2),
+    legend.key=element_blank()) + 
+    labs(x = "NMDS1", colour = "Pooling", y = "NMDS2")  
+ 
+xx3
+
+# Now for Copy threshold (%) 
+xx4 = ggplot(data.scores, aes(x = NMDS1, y = NMDS2)) +   geom_point(size = 2.5, aes(colour = Depth)) + geom_segment(aes(x = 0, y = 0, xend = NMDS1, yend = NMDS2), 
+       data = en_coord_cat, size =1, alpha = 0.5, colour = "grey30")  + geom_text(data = en_coord_cat, aes(x = NMDS1, y = NMDS2), colour = "grey30", 
+       fontface = "bold", label =  c("0.05%","0.5%","1%","2%","All")) + 
+    theme(axis.text.y = element_text(colour = "black", size = 12, face = "bold"), 
+    axis.text.x = element_text(colour = "black", face = "bold", size = 12), 
+    legend.text = element_text(size = 12, face ="bold", colour ="black"), 
+    legend.position = "right", axis.title.y = element_text(face = "bold", size = 14), 
+    axis.title.x = element_text(face = "bold", size = 14, colour = "black"), 
+    legend.title = element_text(size = 14, colour = "black", face = "bold"), 
+    panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 1.2),
+    legend.key=element_blank()) + 
+    labs(x = "NMDS1", colour = "Coverage threshold (%)", y = "NMDS2")  
+ 
+xx4
+
+#### Now for ASVs ####
+#names based on past work done, inconvenient to change the names to the data but this is for the copy number threshold (%)
+Depth_ASVs<-read_excel("/Users/Thomas/Desktop/Nemabiome/nemabiome_new/Nemabiome-refined.xlsx", sheet="Depth_ASVs")
+str(Depth_ASVs)
+head(Depth_ASVs)
+
+Depth_ASVs$Primer<-as.factor(Depth_ASVs$Primer)
+Depth_ASVs$Pooling<-as.factor(Depth_ASVs$Pooling)
+Depth_ASVs$Cow<-as.factor(Depth_ASVs$Cow)
+Depth_ASVs$Depth<-as.factor(Depth_ASVs$Depth)
+
+#make community matrix - extract columns with abundance information, the 5 indicates that you cull everything before column 5 as those treatments arent appropriate for PERMANOVA
+com = Depth_ASVs[,5:ncol(Depth_ASVs)]
+head(com)
+
+df_com<-as.data.frame(com)
+
+BC<-vegdist(df_com, method="bray")
+
+Depth_ASVs_Primer<-adonis(BC ~ Depth + Primer + Pooling, Depth_ASVs, perm=200)
+
+Depth_ASVs_Primer
+
+#turn abundance data frame into a matrix
+m_com = as.matrix(com)
+head(m_com)
+
+env= Depth_ASVs[,1]
+
+head(env)
+
+#having problems where it sees cow as a continuous variable thus need to swap it out for a categorical one as done below:
+env$Primer<-as.factor(env$Primer)
+
+# now we create our NMDS (set seed makes sure we get the same result every time):
+set.seed(123)
+nmds = metaMDS(m_com, distance = "bray")
+nmds
+
+en = envfit(nmds, env, permutations = 999, na.rm = TRUE)
+
+en
+# for a good representation on our data we are after a stress level of less than 0.2, if its zero then you might have an outlier thats very different to the other samples. 
+
+plot(nmds)
+plot(en)
+
+# to plot it in ggplots2 we need to extract the NMDS coordinates for NMDS1 and NMDS2 axes, then put them into a new dataframe called "data.scores"
+#extract NMDS scores (x and y coordinates)
+data.scores = as.data.frame(scores(nmds)$ sites)
+
+#add columns to data frame 
+data.scores$Cow = Depth_ASVs$Cow
+data.scores$Primer = Depth_ASVs$Primer
+data.scores$Depth = Depth_ASVs$Depth
+data.scores$Pooling = Depth_ASVs$Pooling
+
+data.scores$Primer<-as.factor(data.scores$Primer)
+data.scores$Cow<-as.factor(data.scores$Cow)
+data.scores$Depth<-as.factor(data.scores$Depth)
+data.scores$Pooling<-as.factor(data.scores$Pooling)
+
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "1"="Replicate"))
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "2"="Replicate"))
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "3"="Replicate"))
+count(data.scores, Pooling)
+
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "1_2"="Pooled replicates 1 and 2"))
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "1_2_3"="Pooled replicates 1, 2 and 3"))
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "1_3"="Pooled replicates 1 and 3"))
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "2_3"="Pooled replicates 2 and 3"))
+count(data.scores, Pooling)
+
+head(data.scores)
+
+en_coord_cat = as.data.frame(scores(en, "factors"))
+en_coord_cat 
+
+#Cows plotted with Copy NUmber threshold% for vectors, had to manually assign the names  
+xx1 = ggplot(data.scores, aes(x = NMDS1, y = NMDS2)) +   geom_point(size = 2.5, aes(colour = Cow)) + geom_segment(aes(x = 0, y = 0, xend = NMDS1, yend = NMDS2), 
+       data = en_coord_cat, size =1, alpha = 0.5, colour = "grey30")  + geom_text(data = en_coord_cat, aes(x = NMDS1, y = NMDS2), colour = "grey30", 
+       fontface = "bold", label= c("0.05%","0.5%","1%","2%","All")) +
+    theme(axis.text.y = element_text(colour = "black", size = 12, face = "bold"), 
+    axis.text.x = element_text(colour = "black", face = "bold", size = 12), 
+    legend.text = element_text(size = 12, face ="bold", colour ="black"), 
+    legend.position = "right", axis.title.y = element_text(face = "bold", size = 14), 
+    axis.title.x = element_text(face = "bold", size = 14, colour = "black"), 
+    legend.title = element_text(size = 14, colour = "black", face = "bold"), 
+    panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 1.2),
+    legend.key=element_blank()) + 
+    labs(x = "NMDS1", colour = "Cow", y = "NMDS2")  
+ 
+xx1
+
+#removed the vectors 
+xx2 = ggplot(data.scores, aes(x = NMDS1, y = NMDS2)) +   geom_point(size = 2.5, aes(colour = Cow, shape=Primer))  +
+    theme(axis.text.y = element_text(colour = "black", size = 12, face = "bold"), 
+    axis.text.x = element_text(colour = "black", face = "bold", size = 12), 
+    legend.text = element_text(size = 12, face ="bold", colour ="black"), 
+    legend.position = "right", axis.title.y = element_text(face = "bold", size = 14), 
+    axis.title.x = element_text(face = "bold", size = 14, colour = "black"), 
+    legend.title = element_text(size = 14, colour = "black", face = "bold"), 
+    panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 1.2),
+    legend.key=element_blank()) + 
+    labs(x = "NMDS1", colour = "Cow", shape="Primer used", y = "NMDS2")  
+ 
+xx2
+
+xx3 = ggplot(data.scores, aes(x = NMDS1, y = NMDS2)) +   geom_point(size = 2.5, aes(colour = Depth))  +
+    theme(axis.text.y = element_text(colour = "black", size = 12, face = "bold"), 
+    axis.text.x = element_text(colour = "black", face = "bold", size = 12), 
+    legend.text = element_text(size = 12, face ="bold", colour ="black"), 
+    legend.position = "right", axis.title.y = element_text(face = "bold", size = 14), 
+    axis.title.x = element_text(face = "bold", size = 14, colour = "black"), 
+    legend.title = element_text(size = 14, colour = "black", face = "bold"), 
+    panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 1.2),
+    legend.key=element_blank()) + 
+    labs(x = "NMDS1", colour = "Copy threshold (%)", y = "NMDS2")  
+ 
+xx3
+
+xx4 = ggplot(data.scores, aes(x = NMDS1, y = NMDS2)) +   geom_point(size = 2.5, aes(colour = Pooling))  +
+    theme(axis.text.y = element_text(colour = "black", size = 12, face = "bold"), 
+    axis.text.x = element_text(colour = "black", face = "bold", size = 12), 
+    legend.text = element_text(size = 12, face ="bold", colour ="black"), 
+    legend.position = "right", axis.title.y = element_text(face = "bold", size = 14), 
+    axis.title.x = element_text(face = "bold", size = 14, colour = "black"), 
+    legend.title = element_text(size = 14, colour = "black", face = "bold"), 
+    panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 1.2),
+    legend.key=element_blank()) + 
+    labs(x = "NMDS1", colour = "Pooling method", y = "NMDS2")  
+ 
+xx4
+
+###### 2% v all ######
+#names based on past work done, inconvenient to change the names to the data but this is for the copy number threshold (%)
+Depth2<-read_excel("/Users/Thomas/Desktop/Nemabiome/nemabiome_new/Nemabiome-refined.xlsx", sheet="Depth(2)_ASVs")
+str(Depth2)
+head(Depth2)
+
+Depth_Species$Primer<-as.factor(Depth_Species$Primer)
+Depth_Species$Pooling<-as.factor(Depth_Species$Pooling)
+Depth_Species$Cow<-as.factor(Depth_Species$Cow)
+Depth_Species$Depth<-as.factor(Depth_Species$Depth)
+
+#make community matrix - extract columns with abundance information, the 5 indicates that you cull everything before column 5 as those treatments arent appropriate for PERMANOVA
+com = Depth2[,5:ncol(Depth2)]
+head(com)
+
+#turn abundance data frame into a matrix
+m_com = as.matrix(com)
+head(m_com)
+
+env= Depth2[,4]
+
+head(env)
+
+#having problems where it sees cow as a continuous variable thus need to swap it out for a categorical one as done below:
+env$Cow<-as.factor(env$Cow)
+
+# now we create our NMDS (set seed makes sure we get the same result every time):
+set.seed(123)
+nmds = metaMDS(m_com, distance = "bray")
+nmds
+
+en = envfit(nmds, env, permutations = 999, na.rm = TRUE)
+
+en
+# for a good representation on our data we are after a stress level of less than 0.2, if its zero then you might have an outlier thats very different to the other samples. 
+
+plot(nmds)
+plot(en)
+
+# to plot it in ggplots2 we need to extract the NMDS coordinates for NMDS1 and NMDS2 axes, then put them into a new dataframe called "data.scores"
+#extract NMDS scores (x and y coordinates)
+data.scores = as.data.frame(scores(nmds)$ sites)
+
+#add columns to data frame 
+data.scores$Cow = Depth2$Cow
+data.scores$Primer = Depth2$Primer
+data.scores$Depth = Depth2$Depth
+data.scores$Pooling = Depth2$Pooling
+
+data.scores$Primer<-as.factor(data.scores$Primer)
+data.scores$Cow<-as.factor(data.scores$Cow)
+data.scores$Depth<-as.factor(data.scores$Depth)
+data.scores$Pooling<-as.factor(data.scores$Pooling)
+
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "1"="Replicate"))
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "2"="Replicate"))
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "3"="Replicate"))
+count(data.scores, Pooling)
+
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "1_2"="Pooled replicates 1 and 2"))
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "1_2_3"="Pooled replicates 1, 2 and 3"))
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "1_3"="Pooled replicates 1 and 3"))
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "2_3"="Pooled replicates 2 and 3"))
+count(data.scores, Pooling)
+
+head(data.scores)
+
+en_coord_cat = as.data.frame(scores(en, "factors"))
+en_coord_cat 
+
+#Cows plotted with Copy NUmber threshold% for vectors, had to manually assign the names  
+xx1 = ggplot(data.scores, aes(x = NMDS1, y = NMDS2)) +   geom_point(size = 2.5, aes(colour = Primer))  + geom_segment(aes(x = 0, y = 0, xend = NMDS1, yend = NMDS2), 
+       data = en_coord_cat, size =1, alpha = 0.5, colour = "grey30")  + geom_text(data = en_coord_cat, aes(x = NMDS1, y = NMDS2), colour = "grey30", 
+       fontface = "bold", label= row.names(en_coord_cat)) +
+    theme(axis.text.y = element_text(colour = "black", size = 12, face = "bold"), 
+    axis.text.x = element_text(colour = "black", face = "bold", size = 12), 
+    legend.text = element_text(size = 12, face ="bold", colour ="black"), 
+    legend.position = "right", axis.title.y = element_text(face = "bold", size = 14), 
+    axis.title.x = element_text(face = "bold", size = 14, colour = "black"), 
+    legend.title = element_text(size = 14, colour = "black", face = "bold"), 
+    panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 1.2),
+    legend.key=element_blank()) + 
+    labs(x = "NMDS1", colour = "Primer used", y = "NMDS2")  
+ 
+xx1
+
+Depth2<-read_excel("/Users/Thomas/Desktop/Nemabiome/nemabiome_new/Nemabiome-refined.xlsx", sheet="Depth(2)_ASVs")
+str(Depth2)
+head(Depth2)
+
+Depth_Species$Primer<-as.factor(Depth_Species$Primer)
+Depth_Species$Pooling<-as.factor(Depth_Species$Pooling)
+Depth_Species$Cow<-as.factor(Depth_Species$Cow)
+Depth_Species$Depth<-as.factor(Depth_Species$Depth)
+
+#make community matrix - extract columns with abundance information, the 5 indicates that you cull everything before column 5 as those treatments arent appropriate for PERMANOVA
+com = Depth2[,5:ncol(Depth2)]
+head(com)
+
+#turn abundance data frame into a matrix
+m_com = as.matrix(com)
+head(m_com)
+
+env= Depth2[,4]
+
+head(env)
+
+#having problems where it sees cow as a continuous variable thus need to swap it out for a categorical one as done below:
+env$Cow<-as.factor(env$Cow)
+
+# now we create our NMDS (set seed makes sure we get the same result every time):
+set.seed(123)
+nmds = metaMDS(m_com, distance = "bray")
+nmds
+
+en = envfit(nmds, env, permutations = 999, na.rm = TRUE)
+
+en
+# for a good representation on our data we are after a stress level of less than 0.2, if its zero then you might have an outlier thats very different to the other samples. 
+
+plot(nmds)
+plot(en)
+
+# to plot it in ggplots2 we need to extract the NMDS coordinates for NMDS1 and NMDS2 axes, then put them into a new dataframe called "data.scores"
+#extract NMDS scores (x and y coordinates)
+data.scores = as.data.frame(scores(nmds)$ sites)
+
+#add columns to data frame 
+data.scores$Cow = Depth2$Cow
+data.scores$Primer = Depth2$Primer
+data.scores$Depth = Depth2$Depth
+data.scores$Pooling = Depth2$Pooling
+
+data.scores$Primer<-as.factor(data.scores$Primer)
+data.scores$Cow<-as.factor(data.scores$Cow)
+data.scores$Depth<-as.factor(data.scores$Depth)
+data.scores$Pooling<-as.factor(data.scores$Pooling)
+
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "1"="Replicate"))
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "2"="Replicate"))
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "3"="Replicate"))
+count(data.scores, Pooling)
+
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "1_2"="Pooled replicates 1 and 2"))
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "1_2_3"="Pooled replicates 1, 2 and 3"))
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "1_3"="Pooled replicates 1 and 3"))
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "2_3"="Pooled replicates 2 and 3"))
+count(data.scores, Pooling)
+
+head(data.scores)
+
+en_coord_cat = as.data.frame(scores(en, "factors"))
+en_coord_cat 
+
+#Cows plotted with Copy NUmber threshold% for vectors, had to manually assign the names  
+xx1 = ggplot(data.scores, aes(x = NMDS1, y = NMDS2)) +   geom_point(size = 2.5, aes(colour = Primer))  + geom_segment(aes(x = 0, y = 0, xend = NMDS1, yend = NMDS2), 
+       data = en_coord_cat, size =1, alpha = 0.5, colour = "grey30")  + geom_text(data = en_coord_cat, aes(x = NMDS1, y = NMDS2), colour = "grey30", 
+       fontface = "bold", label= row.names(en_coord_cat)) +
+    theme(axis.text.y = element_text(colour = "black", size = 12, face = "bold"), 
+    axis.text.x = element_text(colour = "black", face = "bold", size = 12), 
+    legend.text = element_text(size = 12, face ="bold", colour ="black"), 
+    legend.position = "right", axis.title.y = element_text(face = "bold", size = 14), 
+    axis.title.x = element_text(face = "bold", size = 14, colour = "black"), 
+    legend.title = element_text(size = 14, colour = "black", face = "bold"), 
+    panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 1.2),
+    legend.key=element_blank()) + 
+    labs(x = "NMDS1", colour = "Primer used", y = "NMDS2")  
+ 
+xx1
+
+### ASVs all###
+Depth_all<-read_excel("/Users/Thomas/Desktop/Nemabiome/nemabiome_new/Nemabiome-refined.xlsx", sheet="Depth(all)_ASVs")
+str(Depth_all)
+head(Depth_all)
+
+Depth_Species$Primer<-as.factor(Depth_Species$Primer)
+Depth_Species$Pooling<-as.factor(Depth_Species$Pooling)
+Depth_Species$Cow<-as.factor(Depth_Species$Cow)
+Depth_Species$Depth<-as.factor(Depth_Species$Depth)
+
+#make community matrix - extract columns with abundance information, the 5 indicates that you cull everything before column 5 as those treatments arent appropriate for PERMANOVA
+com = Depth_all[,5:ncol(Depth_all)]
+head(com)
+
+#turn abundance data frame into a matrix
+m_com = as.matrix(com)
+head(m_com)
+
+env= Depth_all[,2]
+
+head(env)
+
+#having problems where it sees cow as a continuous variable thus need to swap it out for a categorical one as done below:
+env$Cow<-as.factor(env$Cow)
+
+# now we create our NMDS (set seed makes sure we get the same result every time):
+set.seed(123)
+nmds = metaMDS(m_com, distance = "bray")
+nmds
+
+en = envfit(nmds, env, permutations = 999, na.rm = TRUE)
+
+en
+# for a good representation on our data we are after a stress level of less than 0.2, if its zero then you might have an outlier thats very different to the other samples. 
+
+plot(nmds)
+plot(en)
+
+# to plot it in ggplots2 we need to extract the NMDS coordinates for NMDS1 and NMDS2 axes, then put them into a new dataframe called "data.scores"
+#extract NMDS scores (x and y coordinates)
+data.scores = as.data.frame(scores(nmds)$ sites)
+
+#add columns to data frame 
+data.scores$Cow = Depth2$Cow
+data.scores$Primer = Depth2$Primer
+data.scores$Depth = Depth2$Depth
+data.scores$Pooling = Depth2$Pooling
+
+data.scores$Primer<-as.factor(data.scores$Primer)
+data.scores$Cow<-as.factor(data.scores$Cow)
+data.scores$Depth<-as.factor(data.scores$Depth)
+data.scores$Pooling<-as.factor(data.scores$Pooling)
+
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "1"="Replicate"))
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "2"="Replicate"))
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "3"="Replicate"))
+count(data.scores, Pooling)
+
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "1_2"="Pooled replicates 1 and 2"))
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "1_2_3"="Pooled replicates 1, 2 and 3"))
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "1_3"="Pooled replicates 1 and 3"))
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "2_3"="Pooled replicates 2 and 3"))
+count(data.scores, Pooling)
+
+head(data.scores)
+
+en_coord_cat = as.data.frame(scores(en, "factors"))
+en_coord_cat 
+
+#Cows plotted with Copy NUmber threshold% for vectors, had to manually assign the names  
+xx1 = ggplot(data.scores, aes(x = NMDS1, y = NMDS2)) +   geom_point(size = 2.5, aes(colour = Primer))  + geom_segment(aes(x = 0, y = 0, xend = NMDS1, yend = NMDS2), 
+       data = en_coord_cat, size =1, alpha = 0.5, colour = "grey30")  + geom_text(data = en_coord_cat, aes(x = NMDS1, y = NMDS2), colour = "grey30", 
+       fontface = "bold", label= row.names(en_coord_cat)) +
+    theme(axis.text.y = element_text(colour = "black", size = 12, face = "bold"), 
+    axis.text.x = element_text(colour = "black", face = "bold", size = 12), 
+    legend.text = element_text(size = 12, face ="bold", colour ="black"), 
+    legend.position = "right", axis.title.y = element_text(face = "bold", size = 14), 
+    axis.title.x = element_text(face = "bold", size = 14, colour = "black"), 
+    legend.title = element_text(size = 14, colour = "black", face = "bold"), 
+    panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 1.2),
+    legend.key=element_blank()) + 
+    labs(x = "NMDS1", colour = "Primer used", y = "NMDS2")  
+ 
+xx1
+
