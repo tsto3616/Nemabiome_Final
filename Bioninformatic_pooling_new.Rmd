@@ -1,0 +1,183 @@
+### Bioinformatics- Species###
+library(readxl)
+library(ggplot2)
+library(tidyverse)
+library(dplyr)
+library(vegan)
+library(tidyverse)
+library(ggforce)
+
+Bioinfo_Species<-read_excel("C:/Users/tsto3616/OneDrive - The University of Sydney (Staff)/Desktop/Nemabiome/Nemabiome-refined.xlsx", sheet="Bioinfo_Species_refined")
+str(Bioinfo_Species)
+head(Bioinfo_Species)
+
+Bioinfo_Species$Pooling<-as.factor(Bioinfo_Species$Pooling)
+Bioinfo_Species$Cow<-as.factor(Bioinfo_Species$Cow)
+Bioinfo_Species$Primer<-as.factor(Bioinfo_Species$Primer)
+
+ 
+#make community matrix - extract columns with abundance information, the 5 indicates that you cull everything before column 5 as those treatments arent appropriate for out thing
+com = Bioinfo_Species[,5:ncol(Bioinfo_Species)]
+head(com)
+
+df_com<-as.data.frame(com)
+# removed the zero data rows(in excel)
+BC<-vegdist(df_com, method="bray")
+
+adonis(BC ~ Replicates+ Primer + Pooling, Bioinfo_Species, perm=200)
+
+BC.anosim<-anosim(BC, Bioinfo_Species$Pooling, permutations = 999, distance = "bray")
+
+# now for anosim for primer and cow
+BC<-vegdist(df_com, method="bray")
+
+adonis(BC ~ Replicates+ Primer + Pooling, Bioinfo_Species, perm=200)
+
+Cow.anosim<-anosim(BC, Bioinfo_Species$Cow, permutations = 999, distance = "bray") #p=0.001
+
+anosim(BC, Bioinfo_Species$Primer, permutations = 999, distance = "bray") #p=0.878
+
+# now for our PERMANOVA
+adonis(BC ~ Pooling+ Primer+ Cow, Bioinfo_Species, perm=200)
+
+adonis(BC ~ Pooling+ Cow, Bioinfo_Species, perm=200)
+
+# now for Jaccard
+Jaccard<-vegdist(df_com, method="jaccard")
+
+adonis(BC ~ Replicates+ Primer + Pooling, Bioinfo_Species, perm=200)
+
+Jaccard.anosim<-anosim(
+Jaccard,
+Bioinfo_Species$Pooling,
+permutations = 999,
+distance = "jaccard",
+strata = NULL,
+parallel = getOption("mc.cores")
+)
+
+Cow.anosim<-anosim(
+Jaccard,
+Bioinfo_Species$Cow,
+permutations = 999,
+distance = "jaccard",
+strata = NULL,
+parallel = getOption("mc.cores")
+)
+
+plot(Cow.anosim)
+
+plot(Jaccard.anosim)
+
+summary(Cow.anosim)
+
+summary(Jaccard.anosim)
+
+R.values <- with(Cow.anosim, data.frame(R = c(statistic, perm) ) )
+R.values$Type <- c("actual", rep("perm", length(R.values$R) - 1))
+
+ggplot(data = R.values, aes(x = R)) +
+  geom_density() + # permuted P-values
+  geom_vline(data = R.values[R.values$Type == "actual" , ], aes(xintercept = R), colour = "red") +
+  theme_bw()
+ggsave("graphics/ANOSIM.R.png", width = 3, height = 2.5, units = "in", dpi = 300)
+
+BC <- data.frame(
+  Resp = as.numeric(BC),
+  Group = as.numeric(graz.dist))
+  
+#turn abundance data frame into a matrix
+m_com = as.matrix(com)
+head(m_com)
+
+# now we create our NMDS (set seed makes sure we get the same result every time):
+set.seed(123)
+nmds = metaMDS(m_com, distance = "jaccard")
+nmds
+# for a good representation on our data we are after a stress level of less than 0.2, if its zero then you might have an outlier thats very different to the other samples. 
+
+plot(nmds)
+
+# to plot it in ggplots2 we need to extract the NMDS coordinates for NMDS1 and NMDS2 axes, then put them into a new dataframe called "data.scores"
+#extract NMDS scores (x and y coordinates)
+data.scores = as.data.frame(scores(nmds)$ sites)
+
+#add columns to data frame 
+data.scores$Cow = Bioinfo_Species$Cow
+data.scores$Primer = Bioinfo_Species$Primer
+data.scores$Pooling = Bioinfo_Species$Pooling
+
+data.scores$Primer<-as.factor(data.scores$Primer)
+data.scores$Cow<-as.factor(data.scores$Cow)
+data.scores$Pooling<-as.factor(data.scores$Pooling)
+
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "one_replicate"="No pooling"))
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "two_replicates"="Bioinformatic pooling of 2 replicates"))
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "three_replicates"="Bioinformatic pooling of 3 replicates"))
+count(data.scores, Pooling)
+
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "1_2"="Lab pooling of replicates 1 and 2"))
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "1_2_3"="Lab pooling of replicates 1, 2 and 3"))
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "1_3"="Lab pooling of replicates 1 and 3"))
+data.scores <- mutate(data.scores, Pooling = recode(.x=Pooling, "2_3"="Lab pooling of replicates 2 and 3"))
+count(data.scores, Pooling)
+
+head(data.scores)
+
+xx = ggplot(data.scores, aes(x = NMDS1, y = NMDS2)) + 
+    geom_point(size = 2.5, aes(colour = Pooling))+ 
+    theme(axis.text.y = element_text(colour = "black", size = 12, face = "bold"), 
+    axis.text.x = element_text(colour = "black", face = "bold", size = 12), 
+    legend.text = element_text(size = 12, face ="bold", colour ="black"), 
+    legend.position = "right", axis.title.y = element_text(face = "bold", size = 14), 
+    axis.title.x = element_text(face = "bold", size = 14, colour = "black"), 
+    legend.title = element_text(size = 14, colour = "black", face = "bold"), 
+    panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 1.2),
+    legend.key=element_blank()) + 
+    labs(x = "NMDS1", colour = "Pooling", y = "NMDS2", shape = "Primer") + stat_ellipse(geom="path", aes(colour=Pooling), lwd=1) 
+ 
+xx
+
+#### now for the bar charts 
+library(readxl)
+library(tidyr)
+library(ggplot2)
+library(reshape2)
+library(svglite)
+library(scales)
+
+table <- read_excel("C:/Users/tsto3616/OneDrive - The University of Sydney (Staff)/Desktop/Nemabiome//Nemabiome-refined.xlsx", sheet="Bioinfo_Species_refined")
+View(table)
+
+# converts the file into the appropriate format for a barplot... only way less work!!!
+
+data_long<- gather(table, Nematodes, Abundance, Cooperia.oncophora:Trichostrongylus.axei, factor_key=TRUE)
+data_long
+
+tail(data_long)
+
+data_long <- mutate(data_long, Pooling = recode(.x=Pooling, "one_replicate"="No pooling"))
+data_long <- mutate(data_long, Pooling = recode(.x=Pooling, "two_replicates"="Bioinformatic pooling of 2 replicates"))
+data_long <- mutate(data_long, Pooling = recode(.x=Pooling, "three_replicates"="Bioinformatic pooling of 3 replicates"))
+count(data_long, Pooling)
+
+data_long <- mutate(data_long, Pooling = recode(.x=Pooling, "1_2"="Lab pooling of replicates 1 and 2"))
+data_long <- mutate(data_long, Pooling = recode(.x=Pooling, "1_2_3"="Lab pooling of replicates 1, 2 and 3"))
+data_long <- mutate(data_long, Pooling = recode(.x=Pooling, "1_3"="Lab pooling of replicates 1 and 3"))
+data_long <- mutate(data_long, Pooling = recode(.x=Pooling, "2_3"="Lab pooling of replicates 2 and 3"))
+count(data_long, Pooling)
+
+ggplot(data_long, aes(x = Pooling, fill = Nematodes, y = Abundance)) + 
+   facet_grid(Primer~ Cow, scales= "free", space="free") + geom_bar(position="fill", stat = "identity", colour = "black") +
+  theme(axis.text.x = element_text(angle = 90, size = 4, colour = "black", vjust = 0.5, hjust = 1, face= "bold"), 
+        axis.title.y = element_text(size = 8, face = "bold"), legend.title = element_text(size = 8, face = "bold"), 
+        legend.text = element_text(size = 8, face = "bold", colour = "black"), 
+        axis.text.y = element_text(colour = "black", size = 8, face = "bold")) + 
+  scale_y_continuous(expand = c(0,0)) + 
+  labs(x = "", y = "Relative Abundance (%)", fill = "Species") +
+  theme(
+        legend.box = "horizontal",
+        legend.title = element_blank(),
+        legend.key.size = unit(0.3, "cm"),
+        legend.position="bottom") 
+
