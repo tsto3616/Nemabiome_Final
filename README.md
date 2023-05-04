@@ -1,6 +1,8 @@
 # Nemabiome_Final
 Nemabiome validation study. 
 
+Best to ignore!!!
+
 The fastaq files can be found in this link: https://www.dropbox.com/scl/fo/hcj3uy5wrzjnkxlhcj8o5/h?dl=0&rlkey=5vblghon690x9ghp34o93xofs
 NOTE: must check if that link contains all files as I have run out of space on it despite deleting other folders. NOTE: reference sequences available in Nema_ref_ver3_at.fas.
 
